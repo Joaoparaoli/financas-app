@@ -1,4 +1,4 @@
-import withTenantPrisma from '@/lib/with-tenant';
+import { withSupabase } from '@/lib/supabase-server'
 
 const VALID_TYPES = [
   'real_estate_rental',
@@ -7,93 +7,126 @@ const VALID_TYPES = [
   'investment_income',
   'intellectual_property',
   'other_income',
-];
+]
 
-async function handler(req, res, prisma) {
-  const { id } = req.query;
+async function handler(req, res) {
+  const { supabase, user } = req
+  const { id } = req.query
+  const { method } = req
 
-  switch (req.method) {
+  switch (method) {
     case 'GET':
-      return handleGet(id, res, prisma);
+      return handleGet(id, res, supabase, user)
     case 'PUT':
-      return handlePut(id, req, res, prisma);
+      return handlePut(id, req, res, supabase, user)
     case 'DELETE':
-      return handleDelete(id, res, prisma);
+      return handleDelete(id, res, supabase, user)
     default:
-      res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
-      return res.status(405).json({ error: `Method ${req.method} not allowed` });
+      res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
+      return res.status(405).json({ error: `Method ${method} not allowed` })
   }
 }
 
-async function handleGet(id, res, prisma) {
+async function handleGet(id, res, supabase, user) {
   try {
-    const asset = await prisma.asset.findUnique({ where: { id } });
+    const { data: asset, error } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!asset) {
-      return res.status(404).json({ error: 'Asset not found' });
+    if (error || !asset) {
+      return res.status(404).json({ error: 'Asset not found' })
     }
 
-    return res.status(200).json(asset);
+    return res.status(200).json(asset)
   } catch (error) {
-    console.error('Error fetching asset:', error);
-    return res.status(500).json({ error: 'Failed to fetch asset' });
+    console.error('Error fetching asset:', error)
+    return res.status(500).json({ error: 'Failed to fetch asset' })
   }
 }
 
-async function handlePut(id, req, res, prisma) {
+async function handlePut(id, req, res, supabase, user) {
   try {
-    const existing = await prisma.asset.findUnique({ where: { id } });
+    const { data: existing, error: fetchError } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!existing) {
-      return res.status(404).json({ error: 'Asset not found' });
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Asset not found' })
     }
 
-    const { type, name, currentValue, monthlyIncome, acquisitionDate, acquisitionValue, notes } =
-      req.body;
+    const { type, name, currentValue, monthlyIncome, acquisitionDate, acquisitionValue, notes } = req.body
 
     if (type && !VALID_TYPES.includes(type)) {
       return res.status(400).json({
         error: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`,
-      });
+      })
     }
 
-    const data = {};
-    if (type !== undefined) data.type = type;
-    if (name !== undefined) data.name = name;
-    if (currentValue !== undefined) data.currentValue = currentValue;
-    if (monthlyIncome !== undefined) data.monthlyIncome = monthlyIncome;
+    const data = {}
+    if (type !== undefined) data.type = type
+    if (name !== undefined) data.name = name
+    if (currentValue !== undefined) data.current_value = currentValue
+    if (monthlyIncome !== undefined) data.monthly_income = monthlyIncome
     if (acquisitionDate !== undefined)
-      data.acquisitionDate = acquisitionDate ? new Date(acquisitionDate) : null;
-    if (acquisitionValue !== undefined) data.acquisitionValue = acquisitionValue;
-    if (notes !== undefined) data.notes = notes;
+      data.acquisition_date = acquisitionDate ? new Date(acquisitionDate).toISOString() : null
+    if (acquisitionValue !== undefined) data.acquisition_value = acquisitionValue
+    if (notes !== undefined) data.notes = notes
 
-    const asset = await prisma.asset.update({
-      where: { id },
-      data,
-    });
+    const { data: asset, error } = await supabase
+      .from('assets')
+      .update(data)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
 
-    return res.status(200).json(asset);
-  } catch (error) {
-    console.error('Error updating asset:', error);
-    return res.status(500).json({ error: 'Failed to update asset' });
-  }
-}
-
-async function handleDelete(id, res, prisma) {
-  try {
-    const existing = await prisma.asset.findUnique({ where: { id } });
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Asset not found' });
+    if (error) {
+      console.error('Error updating asset:', error)
+      return res.status(500).json({ error: error.message })
     }
 
-    await prisma.asset.delete({ where: { id } });
-
-    return res.status(200).json({ message: 'Asset deleted successfully' });
+    return res.status(200).json(asset)
   } catch (error) {
-    console.error('Error deleting asset:', error);
-    return res.status(500).json({ error: 'Failed to delete asset' });
+    console.error('Error updating asset:', error)
+    return res.status(500).json({ error: 'Failed to update asset' })
   }
 }
 
-export default withTenantPrisma(handler);
+async function handleDelete(id, res, supabase, user) {
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('assets')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Asset not found' })
+    }
+
+    const { error } = await supabase
+      .from('assets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Error deleting asset:', error)
+      return res.status(500).json({ error: error.message })
+    }
+
+    return res.status(200).json({ message: 'Asset deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting asset:', error)
+    return res.status(500).json({ error: 'Failed to delete asset' })
+  }
+}
+
+export default withSupabase(handler)

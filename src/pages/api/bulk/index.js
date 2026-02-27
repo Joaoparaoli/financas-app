@@ -1,26 +1,26 @@
-import withTenantPrisma from '@/lib/with-tenant'
+import { withSupabase } from '@/lib/supabase-server'
 
-async function getAllData(prisma) {
+async function getAllData(supabase, user) {
   const [transactions, creditCards, assets, liabilities, financialGoals, subscriptions] = await Promise.all([
-    prisma.transaction.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.creditCard.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.asset.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.liability.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.financialGoal.findMany({ orderBy: { createdAt: 'asc' } }),
-    prisma.subscription.findMany({ orderBy: { createdAt: 'asc' } }),
+    supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+    supabase.from('credit_cards').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+    supabase.from('assets').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+    supabase.from('liabilities').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+    supabase.from('financial_goals').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+    supabase.from('subscriptions').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
   ])
 
   return {
-    transactions,
-    creditCards,
-    assets,
-    liabilities,
-    financialGoals,
-    subscriptions,
+    transactions: transactions.data || [],
+    creditCards: creditCards.data || [],
+    assets: assets.data || [],
+    liabilities: liabilities.data || [],
+    financialGoals: financialGoals.data || [],
+    subscriptions: subscriptions.data || [],
   }
 }
 
-async function replaceAllData(prisma, payload = {}) {
+async function replaceAllData(supabase, user, payload = {}) {
   const {
     transactions = [],
     creditCards = [],
@@ -30,49 +30,49 @@ async function replaceAllData(prisma, payload = {}) {
     subscriptions = [],
   } = payload
 
-  await prisma.$transaction([
-    prisma.transaction.deleteMany(),
-    prisma.creditCard.deleteMany(),
-    prisma.asset.deleteMany(),
-    prisma.liability.deleteMany(),
-    prisma.financialGoal.deleteMany(),
-    prisma.subscription.deleteMany(),
+  // Delete all existing data for user
+  await Promise.all([
+    supabase.from('transactions').delete().eq('user_id', user.id),
+    supabase.from('credit_cards').delete().eq('user_id', user.id),
+    supabase.from('assets').delete().eq('user_id', user.id),
+    supabase.from('liabilities').delete().eq('user_id', user.id),
+    supabase.from('financial_goals').delete().eq('user_id', user.id),
+    supabase.from('subscriptions').delete().eq('user_id', user.id),
   ])
 
+  // Insert new data with user_id
   const ops = []
   if (transactions.length) {
-    ops.push(prisma.transaction.createMany({ data: transactions.map(stripMeta) }))
+    ops.push(supabase.from('transactions').insert(transactions.map(item => ({ ...item, user_id: user.id }))))
   }
   if (creditCards.length) {
-    ops.push(prisma.creditCard.createMany({ data: creditCards.map(stripMeta) }))
+    ops.push(supabase.from('credit_cards').insert(creditCards.map(item => ({ ...item, user_id: user.id }))))
   }
   if (assets.length) {
-    ops.push(prisma.asset.createMany({ data: assets.map(stripMeta) }))
+    ops.push(supabase.from('assets').insert(assets.map(item => ({ ...item, user_id: user.id }))))
   }
   if (liabilities.length) {
-    ops.push(prisma.liability.createMany({ data: liabilities.map(stripMeta) }))
+    ops.push(supabase.from('liabilities').insert(liabilities.map(item => ({ ...item, user_id: user.id }))))
   }
   if (financialGoals.length) {
-    ops.push(prisma.financialGoal.createMany({ data: financialGoals.map(stripMeta) }))
+    ops.push(supabase.from('financial_goals').insert(financialGoals.map(item => ({ ...item, user_id: user.id }))))
   }
   if (subscriptions.length) {
-    ops.push(prisma.subscription.createMany({ data: subscriptions.map(stripMeta) }))
+    ops.push(supabase.from('subscriptions').insert(subscriptions.map(item => ({ ...item, user_id: user.id }))))
   }
 
   if (ops.length) {
-    await prisma.$transaction(ops)
+    await Promise.all(ops)
   }
 }
 
-function stripMeta(record = {}) {
-  const { createdAt, updatedAt, ...rest } = record
-  return rest
-}
+async function handler(req, res) {
+  const { supabase, user } = req
+  const { method } = req
 
-async function handler(req, res, prisma) {
-  if (req.method === 'GET') {
+  if (method === 'GET') {
     try {
-      const data = await getAllData(prisma)
+      const data = await getAllData(supabase, user)
       return res.status(200).json({
         exportedAt: new Date().toISOString(),
         ...data,
@@ -83,13 +83,13 @@ async function handler(req, res, prisma) {
     }
   }
 
-  if (req.method === 'POST') {
+  if (method === 'POST') {
     try {
       const { data } = req.body || {}
       if (!data) {
         return res.status(400).json({ error: 'Payload "data" é obrigatório' })
       }
-      await replaceAllData(prisma, data)
+      await replaceAllData(supabase, user, data)
       return res.status(200).json({ message: 'Dados importados com sucesso' })
     } catch (error) {
       console.error('[POST /api/bulk]', error)
@@ -98,7 +98,7 @@ async function handler(req, res, prisma) {
   }
 
   res.setHeader('Allow', ['GET', 'POST'])
-  return res.status(405).json({ error: `Method ${req.method} not allowed` })
+  return res.status(405).json({ error: `Method ${method} not allowed` })
 }
 
-export default withTenantPrisma(handler)
+export default withSupabase(handler)
