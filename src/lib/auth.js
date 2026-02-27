@@ -1,8 +1,6 @@
 import { randomUUID } from 'crypto';
-import fs from 'fs-extra';
 import bcrypt from 'bcryptjs';
 import { createUser, findUserByEmail } from './core-db';
-import { createTenantDatabase } from './tenant-db';
 
 const SALT_ROUNDS = 10;
 
@@ -11,16 +9,15 @@ export async function registerUser({ name, email, password }) {
     throw new Error('Todos os campos são obrigatórios');
   }
 
-  const existing = findUserByEmail(email);
+  const existing = await findUserByEmail(email);
   if (existing) {
     throw new Error('Já existe um usuário com este e-mail');
   }
 
   const id = randomUUID();
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const tenantDbPath = createTenantDatabase(id);
 
-  return createUser({ id, name: name.trim(), email: email.trim(), passwordHash, tenantDbPath });
+  return createUser({ id, name: name.trim(), email: email.trim(), passwordHash });
 }
 
 export async function authenticateUser({ email, password }) {
@@ -28,7 +25,7 @@ export async function authenticateUser({ email, password }) {
     throw new Error('E-mail e senha são obrigatórios');
   }
 
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
   if (!user) {
     throw new Error('Credenciais inválidas');
   }
@@ -39,21 +36,4 @@ export async function authenticateUser({ email, password }) {
   }
 
   return user;
-}
-
-export function getTenantPathFromUser(user) {
-  if (!user?.tenantDbPath) {
-    throw new Error('Usuário sem banco configurado');
-  }
-  return user.tenantDbPath.startsWith('file:')
-    ? user.tenantDbPath.replace('file:', '')
-    : user.tenantDbPath;
-}
-
-export function ensureTenantDbExists(user) {
-  const tenantPath = getTenantPathFromUser(user);
-  if (!tenantPath || !fs.existsSync(tenantPath)) {
-    throw new Error('Banco do usuário não encontrado');
-  }
-  return tenantPath;
 }

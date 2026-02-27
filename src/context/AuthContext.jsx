@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 const AuthContext = createContext({
   user: null,
@@ -11,30 +12,6 @@ const AuthContext = createContext({
   refreshUser: async () => {},
 });
 
-async function requestJson(url, { body, method = 'GET' } = {}) {
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'same-origin',
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!response.ok) {
-    let errorData = null;
-    try {
-      errorData = await response.json();
-    } catch {
-      errorData = null;
-    }
-    const message = errorData?.error || errorData?.message || `Erro ${response.status}: Falha na requisição`;
-    throw new Error(message);
-  }
-
-  return response.json().catch(() => ({}));
-}
-
 export function AuthProvider({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -43,8 +20,9 @@ export function AuthProvider({ children }) {
   const refreshUser = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await requestJson('/api/auth/me');
-      setUser(data.user ?? null);
+      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      setUser(supabaseUser);
     } catch (error) {
       setUser(null);
     } finally {
@@ -52,54 +30,70 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const handleAuthSuccess = useCallback(
-    async (redirectTo = '/financas') => {
-      await refreshUser();
-      router.replace(redirectTo);
-    },
-    [refreshUser, router]
-  );
-
   useEffect(() => {
     refreshUser();
+    
+    // Listener para mudanças de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [refreshUser]);
 
   const login = useCallback(
     async ({ email, password }, options = {}) => {
       const redirectTo = options.redirectTo || '/financas';
       try {
-        await requestJson('/api/auth/login', { method: 'POST', body: { email, password } });
-        await handleAuthSuccess(redirectTo);
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        
+        await refreshUser();
+        router.replace(redirectTo);
         toast.success('Login realizado com sucesso');
       } catch (error) {
         toast.error(error.message);
         throw error;
       }
     },
-    [handleAuthSuccess]
+    [refreshUser, router]
   );
 
   const register = useCallback(
     async ({ name, email, password }, options = {}) => {
       const redirectTo = options.redirectTo || '/financas';
       try {
-        await requestJson('/api/auth/register', {
-          method: 'POST',
-          body: { name, email, password },
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name },
+          },
         });
-        await handleAuthSuccess(redirectTo);
+        
+        if (error) throw error;
+        
+        await refreshUser();
+        router.replace(redirectTo);
         toast.success('Conta criada com sucesso');
       } catch (error) {
         toast.error(error.message);
         throw error;
       }
     },
-    [handleAuthSuccess]
+    [refreshUser, router]
   );
 
   const logout = useCallback(async () => {
     try {
-      await requestJson('/api/auth/logout', { method: 'POST' });
+      await supabase.auth.signOut();
     } finally {
       setUser(null);
       router.replace('/login');

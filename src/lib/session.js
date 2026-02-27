@@ -41,13 +41,13 @@ export function getTokenFromRequest(req) {
   return cookies[COOKIE_NAME] || null;
 }
 
-export function getSessionUser(req) {
+export async function getSessionUser(req) {
   const token = getTokenFromRequest(req);
   if (!token) return null;
   try {
     const payload = jwt.verify(token, getSecret());
     if (!payload?.userId) return null;
-    return getUserById(payload.userId);
+    return await getUserById(payload.userId);
   } catch (error) {
     return null;
   }
