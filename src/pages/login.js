@@ -1,98 +1,103 @@
-import Head from 'next/head';
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { useCallback, useMemo, useState } from 'react';
-import { AuthLayout } from '@/components/auth/AuthLayout';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useAuth } from '@/context/AuthContext';
+import { useState } from 'react'
+import { useRouter } from 'next/router'
+import { useAuth } from '@/context/AuthContext'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Icons } from '@/components/ui/icons'
+import Link from 'next/link'
+import Head from 'next/head'
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { login, loading: authLoading } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [submitting, setSubmitting] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const { login } = useAuth()
 
-  const redirectTo = useMemo(() => {
-    if (router.query.redirect) {
-      try {
-        return decodeURIComponent(router.query.redirect);
-      } catch (error) {
-        return '/financas';
-      }
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      await login({ email, password })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-    return '/financas';
-  }, [router.query.redirect]);
-
-  const handleChange = useCallback((event) => {
-    setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
-  }, []);
-
-  const handleSubmit = useCallback(
-    async (event) => {
-      event.preventDefault();
-      if (submitting) return;
-      setSubmitting(true);
-      try {
-        await login(
-          { email: form.email, password: form.password },
-          { redirectTo }
-        );
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [form.email, form.password, login, redirectTo, submitting]
-  );
-
-  const disableSubmit = authLoading || submitting || !form.email || !form.password;
+  }
 
   return (
     <>
       <Head>
-        <title>Entrar | Finanças</title>
+        <title>Login - Finanças Pessoais</title>
       </Head>
-      <AuthLayout
-        title="Bem-vindo de volta"
-        subtitle="Acesse sua conta isolada e continue seu planejamento financeiro"
-      >
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="voce@email.com"
-              value={form.email}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={disableSubmit}>
-            {submitting ? 'Entrando...' : 'Entrar'}
-          </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            Ainda não possui uma conta?{' '}
-            <Link className="text-primary font-medium" href={`/register?redirect=${encodeURIComponent(redirectTo)}`}>
-              Cadastre-se
-            </Link>
-          </p>
-        </form>
-      </AuthLayout>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center">Login</CardTitle>
+            <CardDescription className="text-center">
+              Entre com suas credenciais para acessar o sistema
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading}
+              >
+                {loading && (
+                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Entrar
+              </Button>
+            </form>
+            
+            <div className="mt-4 text-center text-sm">
+              Não tem uma conta?{' '}
+              <Link href="/register" className="text-blue-600 hover:text-blue-500">
+                Cadastre-se
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </>
-  );
+  )
 }

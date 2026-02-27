@@ -10,7 +10,7 @@ import { useRouter } from 'next/router';
 import { CalendarClock, CreditCard, Landmark, Target, TrendingUp, Plus, ArrowUpCircle, ArrowDownCircle, CreditCard as CreditCardIcon, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { useAuth } from '@/context/AuthContext';
 
 const FluxoCaixa = dynamic(() => import('@/components/finance/FluxoCaixa'), { ssr: false });
 const CartoesTab = dynamic(() => import('@/components/finance/CartoesTab'), { ssr: false });
@@ -29,9 +29,17 @@ const TAB_ITEMS = [
 
 function FinancasContent() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const currentTab = router.query.tab?.toString() || 'fluxo';
   const [mounted, setMounted] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
 
   const handleQuickAction = useCallback(
     (tab) => {
@@ -164,9 +172,5 @@ function FinancasContent() {
 }
 
 export default function FinancasPage() {
-  return (
-    <ProtectedRoute>
-      <FinancasContent />
-    </ProtectedRoute>
-  );
+  return <FinancasContent />;
 }
