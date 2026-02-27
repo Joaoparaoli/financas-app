@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  financas:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - financas-data:/app/data
+    environment:
+      - DATABASE_URL=file:/app/data/financas.db
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  financas-data:

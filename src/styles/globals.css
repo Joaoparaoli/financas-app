@@ -1,0 +1,276 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 60% 97%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 161 72% 45%;
+    --primary-foreground: 160 100% 97%;
+    --secondary: 210 25% 92%;
+    --secondary-foreground: 222 47% 20%;
+    --muted: 210 30% 94%;
+    --muted-foreground: 214 32% 46%;
+    --accent: 190 100% 97%;
+    --accent-foreground: 199 89% 28%;
+    --destructive: 355 78% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 30% 90%;
+    --input: 210 30% 90%;
+    --ring: 161 72% 45%;
+    --success: 152 70% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 37 91% 55%;
+    --info: 202 100% 42%;
+    --radius: 1.5rem;
+    --glow-primary: 161 72% 45%;
+    --chart-1: 161 72% 45%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 31 94% 55%;
+    --chart-4: 266 82% 75%;
+    --chart-5: 346 77% 60%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 0 0% 98%;
+    --card: 222 47% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 222 47% 10%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 161 72% 55%;
+    --primary-foreground: 212 100% 7%;
+    --secondary: 222 30% 20%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 222 22% 20%;
+    --muted-foreground: 210 17% 65%;
+    --accent: 214 57% 24%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 355 78% 56%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 222 35% 24%;
+    --input: 222 35% 24%;
+    --ring: 161 72% 55%;
+    --success: 150 70% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 37 91% 55%;
+    --info: 202 100% 62%;
+    --glow-primary: 161 72% 55%;
+    --chart-1: 161 72% 55%;
+    --chart-2: 199 89% 58%;
+    --chart-3: 31 94% 60%;
+    --chart-4: 266 82% 65%;
+    --chart-5: 346 77% 65%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: radial-gradient(circle at 20% 20%, hsl(199 89% 80% / 0.35), transparent 45%),
+      radial-gradient(circle at 75% 0%, hsl(266 82% 78% / 0.35), transparent 45%),
+      radial-gradient(circle at 50% 100%, hsl(161 72% 82% / 0.35), transparent 50%),
+      hsl(var(--background));
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background: radial-gradient(circle at 20% 20%, hsl(199 89% 48% / 0.08), transparent 45%),
+      radial-gradient(circle at 75% 0%, hsl(266 82% 55% / 0.08), transparent 45%),
+      radial-gradient(circle at 50% 100%, hsl(161 72% 55% / 0.1), transparent 50%),
+      hsl(var(--background));
+  }
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Enhanced focus styles */
+@layer utilities {
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  .animate-entrance {
+    animation: entrance 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .font-display {
+    font-family: var(--font-display), 'Plus Jakarta Sans', 'Inter', sans-serif;
+  }
+
+  .card-elevated {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03),
+                0 4px 12px -2px rgb(0 0 0 / 0.06),
+                0 12px 24px -4px rgb(0 0 0 / 0.04);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px -5px hsl(var(--glow-primary) / 0.3),
+                0 0 40px -10px hsl(var(--glow-primary) / 0.15);
+  }
+}
+
+.dark .card-elevated {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.2),
+              0 4px 12px -2px rgb(0 0 0 / 0.3),
+              0 12px 24px -4px rgb(0 0 0 / 0.2);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes entrance {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Glassmorphism effect */
+.glass {
+  backdrop-filter: blur(10px);
+  background: hsl(var(--background) / 0.8);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* Gradient backgrounds */
+.gradient-success {
+  background: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success) / 0.8));
+}
+
+.gradient-warning {
+  background: linear-gradient(135deg, hsl(var(--warning)), hsl(var(--warning) / 0.8));
+}
+
+.gradient-destructive {
+  background: linear-gradient(135deg, hsl(var(--destructive)), hsl(var(--destructive) / 0.8));
+}
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, hsl(var(--muted) / 0.5) 25%, hsl(var(--muted) / 0.8) 50%, hsl(var(--muted) / 0.5) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Enhanced card shadows */
+.card-shadow {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.card-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+.noise-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none"%3E%3Cfilter id="n" x="0" y="0" width="200%" height="200%"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)" opacity="0.05"/%3E%3C/svg%3E');
+  mix-blend-mode: soft-light;
+  opacity: 0.4;
+  border-radius: inherit;
+}
+
+/* Button hover effects */
+.btn-hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgb(0 0 0 / 0.2);
+}

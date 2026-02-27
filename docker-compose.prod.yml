@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  financas-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: financas-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:./data/template.db
+      - CORE_DATABASE_URL=file:./data/core.db
+      - TENANTS_DIR=data/tenants
+      - AUTH_SECRET=${AUTH_SECRET:-defina-um-segredo-forte-aqui-123456}
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - ./data:/app/data
+      - /opt/financas-data:/app/data/persistent
+    networks:
+      - financas-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Opcional: Nginx como reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: financas-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./data/uploads:/var/www/uploads:ro
+    depends_on:
+      - financas-app
+    networks:
+      - financas-network
+    profiles:
+      - with-nginx
+
+networks:
+  financas-network:
+    driver: bridge
+
+volumes:
+  financas-data:
+    driver: local
