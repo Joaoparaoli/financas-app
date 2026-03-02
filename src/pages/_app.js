@@ -46,7 +46,8 @@ export default function App({ Component, pageProps }) {
             <meta name="description" content="Gerenciador de finanças pessoais com inteligência e simplicidade" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <meta name="theme-color" content="#10b981" />
-            <link rel="icon" href="/favicon.ico" />
+            <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+            <link rel="alternate icon" href="/favicon.ico" />
           </Head>
           <div className={`${inter.variable} ${jakarta.variable} ${inter.className} antialiased min-h-screen bg-background text-foreground`}>
             <Component {...pageProps} />
