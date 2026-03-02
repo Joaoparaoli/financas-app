@@ -1,4 +1,34 @@
 import { createServerSupabaseClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
+
+function getBearerToken(req) {
+  const authHeader = req.headers?.authorization || ''
+  if (!authHeader.toLowerCase().startsWith('bearer ')) return null
+  return authHeader.slice(7).trim() || null
+}
+
+async function getCurrentUserFromBearer(req) {
+  const token = getBearerToken(req)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!token || !supabaseUrl || !supabaseKey) return null
+
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token)
+
+  if (error) return null
+  return user
+}
 
 export async function createSupabaseClient(req, res) {
   return createServerSupabaseClient({
@@ -25,6 +55,11 @@ export async function createSupabaseClient(req, res) {
 }
 
 export async function getCurrentUser(req, res) {
+  const bearerUser = await getCurrentUserFromBearer(req)
+  if (bearerUser) {
+    return bearerUser
+  }
+
   const supabase = await createSupabaseClient(req, res)
   const {
     data: { user },

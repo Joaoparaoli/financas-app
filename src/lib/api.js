@@ -1,10 +1,26 @@
+import { supabase } from '@/lib/supabase';
+
 async function request(url, options = {}) {
   const { headers, body, ...rest } = options;
+
+  let authHeaders = {};
+  if (supabase) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (session?.access_token) {
+      authHeaders = {
+        Authorization: `Bearer ${session.access_token}`,
+      };
+    }
+  }
 
   const res = await fetch(url, {
     credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...(headers || {}),
     },
     ...rest,
