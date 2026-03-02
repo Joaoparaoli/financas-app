@@ -1,5 +1,23 @@
 import { withSupabase } from '@/lib/supabase-server'
 
+function serializeTransaction(row) {
+  if (!row) return row
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    amount: row.amount === null ? null : Number(row.amount),
+    type: row.type,
+    status: row.status,
+    date: row.date,
+    category: row.category,
+    description: row.description,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 async function handler(req, res) {
   const { supabase, user } = req
   const { method } = req
@@ -50,7 +68,7 @@ async function handleGet(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(200).json(transactions || [])
+    return res.status(200).json((transactions || []).map(serializeTransaction))
   } catch (error) {
     console.error('[GET /api/transactions]', error)
     return res.status(500).json({ error: 'Failed to fetch transactions' })
@@ -110,7 +128,7 @@ async function handlePost(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(201).json(transaction)
+    return res.status(201).json(serializeTransaction(transaction))
   } catch (error) {
     console.error('[POST /api/transactions]', error)
     return res.status(500).json({ error: 'Failed to create transaction' })

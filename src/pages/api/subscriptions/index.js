@@ -1,5 +1,21 @@
 import { withSupabase } from '@/lib/supabase-server'
 
+function serializeSubscription(row) {
+  if (!row) return row
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    amount: row.amount === null ? null : Number(row.amount),
+    frequency: row.frequency,
+    notes: row.notes,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 const VALID_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannual', 'annual']
 
 async function handler(req, res) {
@@ -30,7 +46,7 @@ async function handleGet(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(200).json(subscriptions || [])
+    return res.status(200).json((subscriptions || []).map(serializeSubscription))
   } catch (error) {
     console.error('Error fetching subscriptions:', error)
     return res.status(500).json({ error: 'Failed to fetch subscriptions' })
@@ -71,7 +87,7 @@ async function handlePost(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(201).json(subscription)
+    return res.status(201).json(serializeSubscription(subscription))
   } catch (error) {
     console.error('Error creating subscription:', error)
     return res.status(500).json({ error: 'Failed to create subscription' })

@@ -1,5 +1,23 @@
 import { withSupabase } from '@/lib/supabase-server'
 
+function serializeLiability(row) {
+  if (!row) return row
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    type: row.type,
+    name: row.name,
+    currentValue: row.current_value === null ? null : Number(row.current_value),
+    monthlyExpense: row.monthly_expense === null ? null : Number(row.monthly_expense),
+    acquisitionDate: row.acquisition_date,
+    acquisitionValue: row.acquisition_value === null ? null : Number(row.acquisition_value),
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 const VALID_TYPES = [
   'vehicle',
   'real_estate_own',
@@ -38,7 +56,7 @@ async function handleGet(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(200).json(liabilities || [])
+    return res.status(200).json((liabilities || []).map(serializeLiability))
   } catch (error) {
     console.error('Error fetching liabilities:', error)
     return res.status(500).json({ error: 'Failed to fetch liabilities' })
@@ -87,7 +105,7 @@ async function handlePost(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(201).json(liability)
+    return res.status(201).json(serializeLiability(liability))
   } catch (error) {
     console.error('Error creating liability:', error)
     return res.status(500).json({ error: 'Failed to create liability' })

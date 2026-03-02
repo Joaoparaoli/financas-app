@@ -1,5 +1,24 @@
 import { withSupabase } from '@/lib/supabase-server'
 
+function serializeFinancialGoal(row) {
+  if (!row) return row
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    description: row.description,
+    targetAmount: row.target_amount === null ? null : Number(row.target_amount),
+    currentAmount: row.current_amount === null ? null : Number(row.current_amount),
+    targetDate: row.target_date,
+    category: row.category,
+    status: row.status,
+    icon: row.icon,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 const VALID_CATEGORIES = [
   'emergency_fund',
   'down_payment',
@@ -41,7 +60,7 @@ async function handleGet(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(200).json(financialGoals || [])
+    return res.status(200).json((financialGoals || []).map(serializeFinancialGoal))
   } catch (error) {
     console.error('Error fetching financial goals:', error)
     return res.status(500).json({ error: 'Failed to fetch financial goals' })
@@ -100,7 +119,7 @@ async function handlePost(req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(201).json(financialGoal)
+    return res.status(201).json(serializeFinancialGoal(financialGoal))
   } catch (error) {
     console.error('Error creating financial goal:', error)
     return res.status(500).json({ error: 'Failed to create financial goal' })

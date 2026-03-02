@@ -1,103 +1,157 @@
-import withTenantPrisma from '@/lib/with-tenant';
+import { withSupabase } from '@/lib/supabase-server'
 
-async function handler(req, res, prisma) {
-  const { id } = req.query;
+function serializeCreditCard(row) {
+  if (!row) return row
 
-  switch (req.method) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    institution: row.institution,
+    closingDay: row.closing_day,
+    dueDay: row.due_day,
+    creditLimit: row.credit_limit === null ? null : Number(row.credit_limit),
+    color: row.color,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+async function handler(req, res) {
+  const { id } = req.query
+  const { supabase, user } = req
+  const { method } = req
+
+  switch (method) {
     case 'GET':
-      return handleGet(id, res, prisma);
+      return handleGet(id, res, supabase, user)
     case 'PUT':
-      return handlePut(id, req, res, prisma);
+      return handlePut(id, req, res, supabase, user)
     case 'DELETE':
-      return handleDelete(id, res, prisma);
+      return handleDelete(id, res, supabase, user)
     default:
-      res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
-      return res.status(405).json({ error: `Method ${req.method} not allowed` });
+      res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
+      return res.status(405).json({ error: `Method ${method} not allowed` })
   }
 }
 
-async function handleGet(id, res, prisma) {
+async function handleGet(id, res, supabase, user) {
   try {
-    const creditCard = await prisma.creditCard.findUnique({
-      where: { id },
-    });
+    const { data: creditCard, error } = await supabase
+      .from('credit_cards')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!creditCard) {
-      return res.status(404).json({ error: 'Credit card not found' });
+    if (error || !creditCard) {
+      return res.status(404).json({ error: 'Credit card not found' })
     }
 
-    return res.status(200).json(creditCard);
+    return res.status(200).json(serializeCreditCard(creditCard))
   } catch (error) {
-    console.error('Error fetching credit card:', error);
-    return res.status(500).json({ error: 'Failed to fetch credit card' });
+    console.error('Error fetching credit card:', error)
+    return res.status(500).json({ error: 'Failed to fetch credit card' })
   }
 }
 
-async function handlePut(id, req, res, prisma) {
+async function handlePut(id, req, res, supabase, user) {
   try {
-    const existing = await prisma.creditCard.findUnique({
-      where: { id },
-    });
+    const { data: existing, error: fetchError } = await supabase
+      .from('credit_cards')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!existing) {
-      return res.status(404).json({ error: 'Credit card not found' });
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Credit card not found' })
     }
 
-    const { name, institution, closingDay, dueDay, creditLimit, color } = req.body;
+    const { name, institution, closingDay, dueDay, creditLimit, color } = req.body
 
-    if (closingDay !== undefined && closingDay !== null) {
-      const day = parseInt(closingDay, 10);
-      if (isNaN(day) || day < 1 || day > 31) {
-        return res.status(400).json({ error: 'Closing day must be between 1 and 31' });
-      }
+    const parsedClosingDay =
+      closingDay === undefined || closingDay === null || closingDay === ''
+        ? null
+        : parseInt(closingDay, 10)
+    const parsedDueDay =
+      dueDay === undefined || dueDay === null || dueDay === ''
+        ? null
+        : parseInt(dueDay, 10)
+    const parsedCreditLimit =
+      creditLimit === undefined || creditLimit === null || creditLimit === ''
+        ? null
+        : parseFloat(creditLimit)
+
+    if (closingDay !== undefined && parsedClosingDay !== null && (isNaN(parsedClosingDay) || parsedClosingDay < 1 || parsedClosingDay > 31)) {
+      return res.status(400).json({ error: 'Closing day must be between 1 and 31' })
     }
 
-    if (dueDay !== undefined && dueDay !== null) {
-      const day = parseInt(dueDay, 10);
-      if (isNaN(day) || day < 1 || day > 31) {
-        return res.status(400).json({ error: 'Due day must be between 1 and 31' });
-      }
+    if (dueDay !== undefined && parsedDueDay !== null && (isNaN(parsedDueDay) || parsedDueDay < 1 || parsedDueDay > 31)) {
+      return res.status(400).json({ error: 'Due day must be between 1 and 31' })
     }
 
-    const data = {};
-    if (name !== undefined) data.name = name;
-    if (institution !== undefined) data.institution = institution;
-    if (closingDay !== undefined) data.closingDay = closingDay != null ? parseInt(closingDay, 10) : null;
-    if (dueDay !== undefined) data.dueDay = dueDay != null ? parseInt(dueDay, 10) : null;
-    if (creditLimit !== undefined) data.creditLimit = creditLimit != null ? parseFloat(creditLimit) : null;
-    if (color !== undefined) data.color = color;
+    if (creditLimit !== undefined && parsedCreditLimit !== null && (isNaN(parsedCreditLimit) || parsedCreditLimit < 0)) {
+      return res.status(400).json({ error: 'Credit limit must be a non-negative number' })
+    }
 
-    const creditCard = await prisma.creditCard.update({
-      where: { id },
-      data,
-    });
+    const data = {}
+    if (name !== undefined) data.name = name ? String(name).trim() : null
+    if (institution !== undefined) data.institution = institution ? String(institution).trim() : null
+    if (closingDay !== undefined) data.closing_day = parsedClosingDay
+    if (dueDay !== undefined) data.due_day = parsedDueDay
+    if (creditLimit !== undefined) data.credit_limit = parsedCreditLimit
+    if (color !== undefined) data.color = color
 
-    return res.status(200).json(creditCard);
+    const { data: creditCard, error } = await supabase
+      .from('credit_cards')
+      .update(data)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating credit card:', error)
+      return res.status(500).json({ error: error.message })
+    }
+
+    return res.status(200).json(serializeCreditCard(creditCard))
   } catch (error) {
-    console.error('Error updating credit card:', error);
-    return res.status(500).json({ error: 'Failed to update credit card' });
+    console.error('Error updating credit card:', error)
+    return res.status(500).json({ error: 'Failed to update credit card' })
   }
 }
 
-async function handleDelete(id, res, prisma) {
+async function handleDelete(id, res, supabase, user) {
   try {
-    const existing = await prisma.creditCard.findUnique({
-      where: { id },
-    });
+    const { data: existing, error: fetchError } = await supabase
+      .from('credit_cards')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!existing) {
-      return res.status(404).json({ error: 'Credit card not found' });
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Credit card not found' })
     }
 
-    await prisma.creditCard.delete({
-      where: { id },
-    });
+    const { error } = await supabase
+      .from('credit_cards')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
 
-    return res.status(200).json({ message: 'Credit card deleted successfully' });
+    if (error) {
+      console.error('Error deleting credit card:', error)
+      return res.status(500).json({ error: error.message })
+    }
+
+    return res.status(200).json({ message: 'Credit card deleted successfully' })
   } catch (error) {
-    console.error('Error deleting credit card:', error);
-    return res.status(500).json({ error: 'Failed to delete credit card' });
+    console.error('Error deleting credit card:', error)
+    return res.status(500).json({ error: 'Failed to delete credit card' })
   }
 }
 
-export default withTenantPrisma(handler);
+export default withSupabase(handler)

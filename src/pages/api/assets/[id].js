@@ -1,5 +1,23 @@
 import { withSupabase } from '@/lib/supabase-server'
 
+function serializeAsset(row) {
+  if (!row) return row
+
+  return {
+    id: row.id,
+    userId: row.user_id,
+    type: row.type,
+    name: row.name,
+    currentValue: row.current_value === null ? null : Number(row.current_value),
+    monthlyIncome: row.monthly_income === null ? null : Number(row.monthly_income),
+    acquisitionDate: row.acquisition_date,
+    acquisitionValue: row.acquisition_value === null ? null : Number(row.acquisition_value),
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 const VALID_TYPES = [
   'real_estate_rental',
   'business',
@@ -40,7 +58,7 @@ async function handleGet(id, res, supabase, user) {
       return res.status(404).json({ error: 'Asset not found' })
     }
 
-    return res.status(200).json(asset)
+    return res.status(200).json(serializeAsset(asset))
   } catch (error) {
     console.error('Error fetching asset:', error)
     return res.status(500).json({ error: 'Failed to fetch asset' })
@@ -91,7 +109,7 @@ async function handlePut(id, req, res, supabase, user) {
       return res.status(500).json({ error: error.message })
     }
 
-    return res.status(200).json(asset)
+    return res.status(200).json(serializeAsset(asset))
   } catch (error) {
     console.error('Error updating asset:', error)
     return res.status(500).json({ error: 'Failed to update asset' })

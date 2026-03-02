@@ -17,10 +17,18 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const getClientOrThrow = useCallback(() => {
+    if (!supabase) {
+      throw new Error('Supabase não inicializado. Verifique NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+    return supabase;
+  }, []);
+
   const refreshUser = useCallback(async () => {
     try {
       setLoading(true);
-      const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
+      const client = getClientOrThrow();
+      const { data: { user: supabaseUser }, error } = await client.auth.getUser();
       if (error) throw error;
       setUser(supabaseUser);
     } catch (error) {
@@ -28,12 +36,17 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getClientOrThrow]);
 
   useEffect(() => {
     refreshUser();
     
     // Listener para mudanças de auth
+    if (!supabase) {
+      setLoading(false);
+      return undefined;
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user ?? null);
@@ -48,7 +61,8 @@ export function AuthProvider({ children }) {
     async ({ email, password }, options = {}) => {
       const redirectTo = options.redirectTo || '/financas';
       try {
-        const { error } = await supabase.auth.signInWithPassword({
+        const client = getClientOrThrow();
+        const { error } = await client.auth.signInWithPassword({
           email,
           password,
         });
@@ -63,14 +77,15 @@ export function AuthProvider({ children }) {
         throw error;
       }
     },
-    [refreshUser, router]
+    [getClientOrThrow, refreshUser, router]
   );
 
   const register = useCallback(
     async ({ name, email, password }, options = {}) => {
       const redirectTo = options.redirectTo || '/financas';
       try {
-        const { error } = await supabase.auth.signUp({
+        const client = getClientOrThrow();
+        const { error } = await client.auth.signUp({
           email,
           password,
           options: {
@@ -88,17 +103,18 @@ export function AuthProvider({ children }) {
         throw error;
       }
     },
-    [refreshUser, router]
+    [getClientOrThrow, refreshUser, router]
   );
 
   const logout = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
+      const client = getClientOrThrow();
+      await client.auth.signOut();
     } finally {
       setUser(null);
       router.replace('/login');
     }
-  }, [router]);
+  }, [getClientOrThrow, router]);
 
   const value = useMemo(
     () => ({

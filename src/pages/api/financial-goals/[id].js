@@ -1,4 +1,4 @@
-import withTenantPrisma from '@/lib/with-tenant';
+import { withSupabase } from '@/lib/supabase-server'
 
 const VALID_CATEGORIES = [
   'emergency_fund',
@@ -9,47 +9,78 @@ const VALID_CATEGORIES = [
   'retirement',
   'investment',
   'other',
-];
+]
 
-const VALID_STATUSES = ['active', 'completed', 'paused'];
+const VALID_STATUSES = ['active', 'completed', 'paused']
 
-async function handler(req, res, prisma) {
-  const { id } = req.query;
+function serializeFinancialGoal(row) {
+  if (!row) return row
 
-  switch (req.method) {
-    case 'GET':
-      return handleGet(id, res, prisma);
-    case 'PUT':
-      return handlePut(id, req, res, prisma);
-    case 'DELETE':
-      return handleDelete(id, res, prisma);
-    default:
-      res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
-      return res.status(405).json({ error: `Method ${req.method} not allowed` });
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    description: row.description,
+    targetAmount: row.target_amount === null ? null : Number(row.target_amount),
+    currentAmount: row.current_amount === null ? null : Number(row.current_amount),
+    targetDate: row.target_date,
+    category: row.category,
+    status: row.status,
+    icon: row.icon,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }
 }
 
-async function handleGet(id, res, prisma) {
-  try {
-    const financialGoal = await prisma.financialGoal.findUnique({ where: { id } });
+async function handler(req, res) {
+  const { id } = req.query
+  const { supabase, user } = req
+  const { method } = req
 
-    if (!financialGoal) {
-      return res.status(404).json({ error: 'Financial goal not found' });
+  switch (method) {
+    case 'GET':
+      return handleGet(id, res, supabase, user)
+    case 'PUT':
+      return handlePut(id, req, res, supabase, user)
+    case 'DELETE':
+      return handleDelete(id, res, supabase, user)
+    default:
+      res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
+      return res.status(405).json({ error: `Method ${method} not allowed` })
+  }
+}
+
+async function handleGet(id, res, supabase, user) {
+  try {
+    const { data: financialGoal, error } = await supabase
+      .from('financial_goals')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (error || !financialGoal) {
+      return res.status(404).json({ error: 'Financial goal not found' })
     }
 
-    return res.status(200).json(financialGoal);
+    return res.status(200).json(serializeFinancialGoal(financialGoal))
   } catch (error) {
-    console.error('Error fetching financial goal:', error);
-    return res.status(500).json({ error: 'Failed to fetch financial goal' });
+    console.error('Error fetching financial goal:', error)
+    return res.status(500).json({ error: 'Failed to fetch financial goal' })
   }
 }
 
-async function handlePut(id, req, res, prisma) {
+async function handlePut(id, req, res, supabase, user) {
   try {
-    const existing = await prisma.financialGoal.findUnique({ where: { id } });
+    const { data: existing, error: fetchError } = await supabase
+      .from('financial_goals')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!existing) {
-      return res.status(404).json({ error: 'Financial goal not found' });
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Financial goal not found' })
     }
 
     const {
@@ -61,12 +92,12 @@ async function handlePut(id, req, res, prisma) {
       category,
       status,
       icon,
-    } = req.body;
+    } = req.body
 
     if (category && !VALID_CATEGORIES.includes(category)) {
       return res.status(400).json({
         error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}`,
-      });
+      })
     }
 
     if (status && !VALID_STATUSES.includes(status)) {
@@ -75,43 +106,65 @@ async function handlePut(id, req, res, prisma) {
       });
     }
 
-    const data = {};
-    if (title !== undefined) data.title = title;
-    if (description !== undefined) data.description = description;
-    if (targetAmount !== undefined) data.targetAmount = targetAmount;
-    if (currentAmount !== undefined) data.currentAmount = currentAmount;
-    if (targetDate !== undefined) data.targetDate = new Date(targetDate);
-    if (category !== undefined) data.category = category;
-    if (status !== undefined) data.status = status;
-    if (icon !== undefined) data.icon = icon;
+    const data = {}
+    if (title !== undefined) data.title = title
+    if (description !== undefined) data.description = description
+    if (targetAmount !== undefined) data.target_amount = targetAmount
+    if (currentAmount !== undefined) data.current_amount = currentAmount
+    if (targetDate !== undefined) data.target_date = targetDate ? new Date(targetDate).toISOString() : null
+    if (category !== undefined) data.category = category
+    if (status !== undefined) data.status = status
+    if (icon !== undefined) data.icon = icon
 
-    const financialGoal = await prisma.financialGoal.update({
-      where: { id },
-      data,
-    });
+    const { data: financialGoal, error } = await supabase
+      .from('financial_goals')
+      .update(data)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
 
-    return res.status(200).json(financialGoal);
-  } catch (error) {
-    console.error('Error updating financial goal:', error);
-    return res.status(500).json({ error: 'Failed to update financial goal' });
-  }
-}
-
-async function handleDelete(id, res, prisma) {
-  try {
-    const existing = await prisma.financialGoal.findUnique({ where: { id } });
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Financial goal not found' });
+    if (error) {
+      console.error('Error updating financial goal:', error)
+      return res.status(500).json({ error: error.message })
     }
 
-    await prisma.financialGoal.delete({ where: { id } });
-
-    return res.status(200).json({ message: 'Financial goal deleted successfully' });
+    return res.status(200).json(serializeFinancialGoal(financialGoal))
   } catch (error) {
-    console.error('Error deleting financial goal:', error);
-    return res.status(500).json({ error: 'Failed to delete financial goal' });
+    console.error('Error updating financial goal:', error)
+    return res.status(500).json({ error: 'Failed to update financial goal' })
   }
 }
 
-export default withTenantPrisma(handler);
+async function handleDelete(id, res, supabase, user) {
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('financial_goals')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Financial goal not found' })
+    }
+
+    const { error } = await supabase
+      .from('financial_goals')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Error deleting financial goal:', error)
+      return res.status(500).json({ error: error.message })
+    }
+
+    return res.status(200).json({ message: 'Financial goal deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting financial goal:', error)
+    return res.status(500).json({ error: 'Failed to delete financial goal' })
+  }
+}
+
+export default withSupabase(handler)

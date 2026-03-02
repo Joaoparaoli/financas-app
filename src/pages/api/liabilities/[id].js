@@ -1,4 +1,4 @@
-import withTenantPrisma from '@/lib/with-tenant';
+import { withSupabase } from '@/lib/supabase-server'
 
 const VALID_TYPES = [
   'vehicle',
@@ -8,45 +8,75 @@ const VALID_TYPES = [
   'subscriptions',
   'personal_items',
   'other_expense',
-];
+]
 
-async function handler(req, res, prisma) {
-  const { id } = req.query;
+function serializeLiability(row) {
+  if (!row) return row
 
-  switch (req.method) {
-    case 'GET':
-      return handleGet(id, res, prisma);
-    case 'PUT':
-      return handlePut(id, req, res, prisma);
-    case 'DELETE':
-      return handleDelete(id, res, prisma);
-    default:
-      res.setHeader('Allow', ['GET', 'PUT', 'DELETE']);
-      return res.status(405).json({ error: `Method ${req.method} not allowed` });
+  return {
+    id: row.id,
+    userId: row.user_id,
+    type: row.type,
+    name: row.name,
+    currentValue: row.current_value === null ? null : Number(row.current_value),
+    monthlyExpense: row.monthly_expense === null ? null : Number(row.monthly_expense),
+    acquisitionDate: row.acquisition_date,
+    acquisitionValue: row.acquisition_value === null ? null : Number(row.acquisition_value),
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }
 }
 
-async function handleGet(id, res, prisma) {
-  try {
-    const liability = await prisma.liability.findUnique({ where: { id } });
+async function handler(req, res) {
+  const { id } = req.query
+  const { supabase, user } = req
+  const { method } = req
 
-    if (!liability) {
-      return res.status(404).json({ error: 'Liability not found' });
+  switch (method) {
+    case 'GET':
+      return handleGet(id, res, supabase, user)
+    case 'PUT':
+      return handlePut(id, req, res, supabase, user)
+    case 'DELETE':
+      return handleDelete(id, res, supabase, user)
+    default:
+      res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
+      return res.status(405).json({ error: `Method ${method} not allowed` })
+  }
+}
+
+async function handleGet(id, res, supabase, user) {
+  try {
+    const { data: liability, error } = await supabase
+      .from('liabilities')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (error || !liability) {
+      return res.status(404).json({ error: 'Liability not found' })
     }
 
-    return res.status(200).json(liability);
+    return res.status(200).json(serializeLiability(liability))
   } catch (error) {
-    console.error('Error fetching liability:', error);
-    return res.status(500).json({ error: 'Failed to fetch liability' });
+    console.error('Error fetching liability:', error)
+    return res.status(500).json({ error: 'Failed to fetch liability' })
   }
 }
 
-async function handlePut(id, req, res, prisma) {
+async function handlePut(id, req, res, supabase, user) {
   try {
-    const existing = await prisma.liability.findUnique({ where: { id } });
+    const { data: existing, error: fetchError } = await supabase
+      .from('liabilities')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
 
-    if (!existing) {
-      return res.status(404).json({ error: 'Liability not found' });
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Liability not found' })
     }
 
     const {
@@ -57,51 +87,73 @@ async function handlePut(id, req, res, prisma) {
       acquisitionDate,
       acquisitionValue,
       notes,
-    } = req.body;
+    } = req.body
 
     if (type && !VALID_TYPES.includes(type)) {
       return res.status(400).json({
         error: `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`,
-      });
+      })
     }
 
-    const data = {};
-    if (type !== undefined) data.type = type;
-    if (name !== undefined) data.name = name;
-    if (currentValue !== undefined) data.currentValue = currentValue;
-    if (monthlyExpense !== undefined) data.monthlyExpense = monthlyExpense;
+    const data = {}
+    if (type !== undefined) data.type = type
+    if (name !== undefined) data.name = name
+    if (currentValue !== undefined) data.current_value = currentValue
+    if (monthlyExpense !== undefined) data.monthly_expense = monthlyExpense
     if (acquisitionDate !== undefined)
-      data.acquisitionDate = acquisitionDate ? new Date(acquisitionDate) : null;
-    if (acquisitionValue !== undefined) data.acquisitionValue = acquisitionValue;
-    if (notes !== undefined) data.notes = notes;
+      data.acquisition_date = acquisitionDate ? new Date(acquisitionDate).toISOString() : null
+    if (acquisitionValue !== undefined) data.acquisition_value = acquisitionValue
+    if (notes !== undefined) data.notes = notes
 
-    const liability = await prisma.liability.update({
-      where: { id },
-      data,
-    });
+    const { data: liability, error } = await supabase
+      .from('liabilities')
+      .update(data)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
 
-    return res.status(200).json(liability);
-  } catch (error) {
-    console.error('Error updating liability:', error);
-    return res.status(500).json({ error: 'Failed to update liability' });
-  }
-}
-
-async function handleDelete(id, res, prisma) {
-  try {
-    const existing = await prisma.liability.findUnique({ where: { id } });
-
-    if (!existing) {
-      return res.status(404).json({ error: 'Liability not found' });
+    if (error) {
+      console.error('Error updating liability:', error)
+      return res.status(500).json({ error: error.message })
     }
 
-    await prisma.liability.delete({ where: { id } });
-
-    return res.status(200).json({ message: 'Liability deleted successfully' });
+    return res.status(200).json(serializeLiability(liability))
   } catch (error) {
-    console.error('Error deleting liability:', error);
-    return res.status(500).json({ error: 'Failed to delete liability' });
+    console.error('Error updating liability:', error)
+    return res.status(500).json({ error: 'Failed to update liability' })
   }
 }
 
-export default withTenantPrisma(handler);
+async function handleDelete(id, res, supabase, user) {
+  try {
+    const { data: existing, error: fetchError } = await supabase
+      .from('liabilities')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ error: 'Liability not found' })
+    }
+
+    const { error } = await supabase
+      .from('liabilities')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      console.error('Error deleting liability:', error)
+      return res.status(500).json({ error: error.message })
+    }
+
+    return res.status(200).json({ message: 'Liability deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting liability:', error)
+    return res.status(500).json({ error: 'Failed to delete liability' })
+  }
+}
+
+export default withSupabase(handler)
