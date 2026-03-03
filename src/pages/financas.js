@@ -12,6 +12,8 @@ import { CalendarClock, CreditCard, Landmark, Target, TrendingUp, ArrowUpCircle,
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useProfile } from '@/context/ProfileContext';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const FluxoCaixa = dynamic(() => import('@/components/finance/FluxoCaixa'), { ssr: false });
 const CartoesTab = dynamic(() => import('@/components/finance/CartoesTab'), { ssr: false });
@@ -34,7 +36,7 @@ function FinancasContent() {
   const [mounted, setMounted] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const { profiles, selectedProfileId, selectProfile, updateProfile } = useProfile();
+  const { profiles, activeProfiles, selectedProfileId, selectProfile, updateProfile, uploadPhoto } = useProfile();
 
   const handleQuickAction = useCallback(
     (tab) => {
@@ -98,9 +100,9 @@ function FinancasContent() {
                 <ThemeToggle />
               </div>
 
-              {/* Profile selector */}
+              {/* Profile selector - only active profiles */}
               <div className="self-start sm:self-center flex items-center gap-2">
-                {profiles.map((p) => (
+                {(activeProfiles.length > 0 ? activeProfiles : profiles.slice(0, 1)).map((p) => (
                   <button
                     key={p.id}
                     type="button"
@@ -198,38 +200,82 @@ function FinancasContent() {
           <DialogHeader>
             <DialogTitle>Configurar Perfis</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto py-2">
+          <div className="space-y-3 max-h-[65vh] overflow-y-auto py-2 pr-1">
             {profiles.map((p) => (
-              <div key={p.id} className="flex items-start gap-3 border rounded-xl p-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden border flex-shrink-0">
-                  {p.photo ? (
-                    <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm font-semibold bg-muted text-muted-foreground">
-                      {(p.name || p.id)[0].toUpperCase()}
+              <div key={p.id} className={cn('border rounded-xl p-3 space-y-3', !p.active && 'opacity-50')}>
+                {/* Header row: avatar + name + active toggle */}
+                <div className="flex items-center gap-3">
+                  {/* Avatar / upload */}
+                  <label className="relative w-12 h-12 rounded-full overflow-hidden border cursor-pointer flex-shrink-0 group">
+                    {p.photo ? (
+                      <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sm font-semibold bg-muted text-muted-foreground">
+                        {(p.name || p.id)[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs transition-opacity">
+                      Foto
                     </div>
-                  )}
-                </div>
-                <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadPhoto(p.id, file);
+                      }}
+                    />
+                  </label>
+                  {/* Name */}
                   <Input
+                    className="flex-1"
                     value={p.name || ''}
                     onChange={(e) => updateProfile(p.id, { name: e.target.value })}
                     placeholder="Nome do perfil"
                   />
-                  <Input
-                    value={p.photo || ''}
-                    onChange={(e) => updateProfile(p.id, { photo: e.target.value })}
-                    placeholder="URL da foto (opcional)"
-                  />
-                  <p className="text-xs text-muted-foreground">ID: {p.id}</p>
+                  {/* Active toggle */}
+                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                    <Switch
+                      checked={!!p.active}
+                      onCheckedChange={(checked) => updateProfile(p.id, { active: checked })}
+                    />
+                    <span className="text-[10px] text-muted-foreground">{p.active ? 'Ativo' : 'Inativo'}</span>
+                  </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant={p.id === selectedProfileId ? 'default' : 'outline'}
-                  onClick={() => { selectProfile(p.id); setProfileDialogOpen(false); }}
-                >
-                  {p.id === selectedProfileId ? 'Ativo' : 'Usar'}
-                </Button>
+                {/* PIN row */}
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs w-20 flex-shrink-0">PIN (4 dígitos)</Label>
+                  <Input
+                    type="password"
+                    maxLength={4}
+                    inputMode="numeric"
+                    pattern="[0-9]{4}"
+                    className="w-28 text-center tracking-widest"
+                    value={p.pin || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      updateProfile(p.id, { pin: val || null });
+                    }}
+                    placeholder="••••"
+                  />
+                  {p.pin && (
+                    <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => updateProfile(p.id, { pin: null })}>
+                      Remover
+                    </Button>
+                  )}
+                </div>
+                {/* Use button */}
+                {p.active && (
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    variant={p.id === selectedProfileId ? 'default' : 'outline'}
+                    onClick={() => { selectProfile(p.id); setProfileDialogOpen(false); }}
+                  >
+                    {p.id === selectedProfileId ? '✓ Perfil em uso' : 'Usar este perfil'}
+                  </Button>
+                )}
               </div>
             ))}
           </div>

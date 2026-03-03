@@ -150,4 +150,4 @@ async function handlePost(req, res, supabase, profileId) {
   }
 }
 
-export default withSupabase(handler)
+export default handler
