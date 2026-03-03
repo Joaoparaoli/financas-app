@@ -70,6 +70,9 @@ export default function FluxoCaixa() {
       setDialogOpen(false);
       setEditingTransaction(null);
     },
+    onError: (err) => {
+      alert('Erro ao criar: ' + (err?.message || 'Erro desconhecido'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -79,6 +82,9 @@ export default function FluxoCaixa() {
       feedback('success');
       setDialogOpen(false);
       setEditingTransaction(null);
+    },
+    onError: (err) => {
+      alert('Erro ao atualizar: ' + (err?.message || 'Erro desconhecido'));
     },
   });
 

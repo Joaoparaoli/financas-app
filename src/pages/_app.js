@@ -1,12 +1,21 @@
 import '@/styles/globals.css';
 import 'react-credit-cards-2/dist/es/styles-compiled.css';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { ProfileProvider } from '@/context/ProfileContext';
+import { ProfileProvider, useProfile } from '@/context/ProfileContext';
+
+function ProfileCacheInvalidator() {
+  const { selectedProfileId } = useProfile();
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    queryClient.removeQueries();
+  }, [selectedProfileId, queryClient]);
+  return null;
+}
 
 const inter = Inter({
   subsets: ['latin'],
@@ -41,6 +50,7 @@ export default function App({ Component, pageProps }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ProfileProvider>
+          <ProfileCacheInvalidator />
           <Head>
             <title>Finanças Pessoais</title>
             <meta name="description" content="Gerenciador de finanças pessoais com inteligência e simplicidade" />
