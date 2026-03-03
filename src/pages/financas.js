@@ -36,7 +36,27 @@ function FinancasContent() {
   const [mounted, setMounted] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [pinModal, setPinModal] = useState({ open: false, profileId: null, pin: '', error: false });
   const { profiles, activeProfiles, selectedProfileId, selectProfile, updateProfile, uploadPhoto } = useProfile();
+
+  const handleProfileClick = useCallback((p) => {
+    if (p.id === selectedProfileId) return;
+    if (p.pin) {
+      setPinModal({ open: true, profileId: p.id, pin: '', error: false });
+    } else {
+      selectProfile(p.id);
+    }
+  }, [selectedProfileId, selectProfile]);
+
+  const handlePinSubmit = useCallback(() => {
+    const profile = profiles.find((p) => p.id === pinModal.profileId);
+    if (profile && pinModal.pin === profile.pin) {
+      selectProfile(pinModal.profileId);
+      setPinModal({ open: false, profileId: null, pin: '', error: false });
+    } else {
+      setPinModal((prev) => ({ ...prev, pin: '', error: true }));
+    }
+  }, [pinModal, profiles, selectProfile]);
 
   const handleQuickAction = useCallback(
     (tab) => {
@@ -106,7 +126,7 @@ function FinancasContent() {
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => selectProfile(p.id)}
+                    onClick={() => handleProfileClick(p)}
                     className={cn(
                       'w-10 h-10 rounded-full overflow-hidden border-2 transition-all shadow-sm',
                       p.id === selectedProfileId
@@ -191,6 +211,77 @@ function FinancasContent() {
             <DialogTitle>Gráficos e insights</DialogTitle>
           </DialogHeader>
           {insightsOpen && <InsightsPanel onClose={() => setInsightsOpen(false)} />}
+        </DialogContent>
+      </Dialog>
+
+      {/* PIN modal */}
+      <Dialog open={pinModal.open} onOpenChange={(open) => { if (!open) setPinModal({ open: false, profileId: null, pin: '', error: false }); }}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              {profiles.find((p) => p.id === pinModal.profileId)?.name || 'Perfil'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground text-center">Digite o PIN de 4 dígitos</p>
+            <Input
+              type="password"
+              maxLength={4}
+              inputMode="numeric"
+              pattern="[0-9]{4}"
+              className={cn('text-center tracking-[0.5em] text-xl font-mono', pinModal.error && 'border-red-500 focus-visible:ring-red-500')}
+              placeholder="••••"
+              value={pinModal.pin}
+              autoFocus
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                setPinModal((prev) => ({ ...prev, pin: val, error: false }));
+                if (val.length === 4) {
+                  const profile = profiles.find((p) => p.id === pinModal.profileId);
+                  if (profile && val === profile.pin) {
+                    selectProfile(pinModal.profileId);
+                    setPinModal({ open: false, profileId: null, pin: '', error: false });
+                  } else {
+                    setTimeout(() => setPinModal((prev) => ({ ...prev, pin: '', error: true })), 100);
+                  }
+                }
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handlePinSubmit(); }}
+            />
+            {pinModal.error && <p className="text-xs text-red-500 text-center">PIN incorreto. Tente novamente.</p>}
+            <div className="grid grid-cols-3 gap-2">
+              {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((k, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={cn(
+                    'h-12 rounded-xl border border-border/40 text-lg font-medium transition-colors',
+                    k ? 'bg-card hover:bg-muted active:scale-95' : 'invisible'
+                  )}
+                  onClick={() => {
+                    if (!k) return;
+                    if (k === '⌫') {
+                      setPinModal((prev) => ({ ...prev, pin: prev.pin.slice(0, -1), error: false }));
+                      return;
+                    }
+                    const next = (pinModal.pin + k).slice(0, 4);
+                    setPinModal((prev) => ({ ...prev, pin: next, error: false }));
+                    if (next.length === 4) {
+                      const profile = profiles.find((p) => p.id === pinModal.profileId);
+                      if (profile && next === profile.pin) {
+                        selectProfile(pinModal.profileId);
+                        setPinModal({ open: false, profileId: null, pin: '', error: false });
+                      } else {
+                        setTimeout(() => setPinModal((prev) => ({ ...prev, pin: '', error: true })), 100);
+                      }
+                    }
+                  }}
+                >
+                  {k}
+                </button>
+              ))}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
