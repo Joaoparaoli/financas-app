@@ -1,10 +1,10 @@
-import { supabaseAdmin, profileIdToUUID } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 const ALLOWED_PROFILES = ['profile-1', 'profile-2', 'profile-3', 'profile-4', 'profile-5']
 
 function getProfileId(req) {
   const header = req.headers['x-profile-id']
-  if (header && ALLOWED_PROFILES.includes(header)) return profileIdToUUID(header)
+  if (header && ALLOWED_PROFILES.includes(header)) return header
   return null
 }
 
