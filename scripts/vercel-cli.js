@@ -75,12 +75,27 @@ const commands = {
     });
   },
 
+  async delenv(projectName, key) {
+    const envs = await vercelRequest(`/v9/projects/${projectName}/env`)
+    const matches = envs.envs.filter(e => e.key === key)
+    if (!matches.length) {
+      console.log(`\nℹ️ Nada para remover: ${key} não encontrado em ${projectName}\n`)
+      return
+    }
+
+    for (const envVar of matches) {
+      await vercelRequest(`/v9/projects/${projectName}/env/${envVar.id}`, { method: 'DELETE' })
+      console.log(`🗑️ Removido ${key} (${envVar.id})`)
+    }
+  },
+
   async setenv(projectName, key, value) {
     await vercelRequest(`/v10/projects/${projectName}/env`, {
       method: 'POST',
       body: JSON.stringify({
         key,
         value,
+        type: 'encrypted',
         target: ['production', 'preview', 'development'],
       }),
     });

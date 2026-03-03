@@ -10,7 +10,6 @@ import { useRouter } from 'next/router';
 import { CalendarClock, CreditCard, Landmark, Target, TrendingUp, Plus, ArrowUpCircle, ArrowDownCircle, CreditCard as CreditCardIcon, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 const FluxoCaixa = dynamic(() => import('@/components/finance/FluxoCaixa'), { ssr: false });
 const CartoesTab = dynamic(() => import('@/components/finance/CartoesTab'), { ssr: false });
@@ -164,9 +163,5 @@ function FinancasContent() {
 }
 
 export default function FinancasPage() {
-  return (
-    <ProtectedRoute>
-      <FinancasContent />
-    </ProtectedRoute>
-  );
+  return <FinancasContent />
 }

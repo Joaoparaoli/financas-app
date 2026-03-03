@@ -1,4 +1,12 @@
-import { withSupabase } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase'
+
+const ALLOWED_PROFILES = ['profile-1', 'profile-2', 'profile-3', 'profile-4', 'profile-5']
+
+function getProfileId(req) {
+  const header = req.headers['x-profile-id']
+  if (header && ALLOWED_PROFILES.includes(header)) return header
+  return null
+}
 
 function serializeAsset(row) {
   if (!row) return row
@@ -28,30 +36,34 @@ const VALID_TYPES = [
 ]
 
 async function handler(req, res) {
-  const { supabase, user } = req
-  const { id } = req.query
+  const supabase = supabaseAdmin
+  const profileId = getProfileId(req)
+  if (!supabase) return res.status(500).json({ error: 'Supabase não configurado' })
+  if (!profileId) return res.status(400).json({ error: 'Perfil não informado ou inválido' })
   const { method } = req
 
   switch (method) {
     case 'GET':
-      return handleGet(id, res, supabase, user)
+      return handleGet(req, res, supabase, profileId)
     case 'PUT':
-      return handlePut(id, req, res, supabase, user)
+      return handlePut(req, res, supabase, profileId)
     case 'DELETE':
-      return handleDelete(id, res, supabase, user)
+      return handleDelete(req, res, supabase, profileId)
     default:
       res.setHeader('Allow', ['GET', 'PUT', 'DELETE'])
       return res.status(405).json({ error: `Method ${method} not allowed` })
   }
 }
 
-async function handleGet(id, res, supabase, user) {
+async function handleGet(req, res, supabase, profileId) {
   try {
+    const { id } = req.query
+
     const { data: asset, error } = await supabase
       .from('assets')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', profileId)
       .single()
 
     if (error || !asset) {
@@ -65,13 +77,15 @@ async function handleGet(id, res, supabase, user) {
   }
 }
 
-async function handlePut(id, req, res, supabase, user) {
+async function handlePut(req, res, supabase, profileId) {
   try {
+    const { id } = req.query
+
     const { data: existing, error: fetchError } = await supabase
       .from('assets')
       .select('*')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', profileId)
       .single()
 
     if (fetchError || !existing) {
@@ -100,7 +114,7 @@ async function handlePut(id, req, res, supabase, user) {
       .from('assets')
       .update(data)
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', profileId)
       .select()
       .single()
 
@@ -116,13 +130,15 @@ async function handlePut(id, req, res, supabase, user) {
   }
 }
 
-async function handleDelete(id, res, supabase, user) {
+async function handleDelete(req, res, supabase, profileId) {
   try {
+    const { id } = req.query
+
     const { data: existing, error: fetchError } = await supabase
       .from('assets')
-      .select('*')
+      .select('id')
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', profileId)
       .single()
 
     if (fetchError || !existing) {
@@ -133,7 +149,7 @@ async function handleDelete(id, res, supabase, user) {
       .from('assets')
       .delete()
       .eq('id', id)
-      .eq('user_id', user.id)
+      .eq('user_id', profileId)
 
     if (error) {
       console.error('Error deleting asset:', error)
@@ -147,4 +163,4 @@ async function handleDelete(id, res, supabase, user) {
   }
 }
 
-export default withSupabase(handler)
+export default handler

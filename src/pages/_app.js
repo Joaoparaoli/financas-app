@@ -6,7 +6,7 @@ import Head from 'next/head';
 import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/context/AuthContext';
+import { ProfileProvider } from '@/context/ProfileContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -40,7 +40,7 @@ export default function App({ Component, pageProps }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
+        <ProfileProvider>
           <Head>
             <title>Finanças Pessoais</title>
             <meta name="description" content="Gerenciador de finanças pessoais com inteligência e simplicidade" />
@@ -53,7 +53,7 @@ export default function App({ Component, pageProps }) {
             <Component {...pageProps} />
             <Toaster />
           </div>
-        </AuthProvider>
+        </ProfileProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

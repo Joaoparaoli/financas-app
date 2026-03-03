@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   Menu, 
   X, 
@@ -12,20 +12,28 @@ import {
   Bell,
   Search,
   User,
-  ChevronDown
+  ChevronDown,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ThemeSelector } from '@/components/ui/theme-provider';
-import { useAuth } from '@/context/AuthContext';
+import { useProfile } from '@/context/ProfileContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+
+const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=Perfil&background=10b981&color=fff&size=64'
 
 export function AdvancedLayout({ children, currentPage }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const { profiles, selectedProfileId, selectProfile, updateProfile } = useProfile();
 
-  const displayName = user?.name || 'Usuário';
-  const displayEmail = user?.email || '---';
+  const selectedProfile = useMemo(
+    () => profiles.find((p) => p.id === selectedProfileId) || profiles[0],
+    [profiles, selectedProfileId]
+  );
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home, current: currentPage === 'dashboard' },
@@ -96,12 +104,14 @@ export function AdvancedLayout({ children, currentPage }) {
           <div className="p-4 border-t space-y-4">
             <ThemeSelector />
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-success to-success/60 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-success-foreground" />
-              </div>
+              <img
+                src={selectedProfile?.photo || DEFAULT_AVATAR}
+                alt={selectedProfile?.name}
+                className="w-8 h-8 rounded-full object-cover border"
+              />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{displayName}</p>
-                <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
+                <p className="text-sm font-medium truncate">{selectedProfile?.name || 'Perfil'}</p>
+                <p className="text-xs text-muted-foreground truncate">{selectedProfile?.id}</p>
               </div>
             </div>
           </div>
@@ -141,31 +151,51 @@ export function AdvancedLayout({ children, currentPage }) {
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full" />
               </Button>
 
-              {/* User menu */}
               <div className="relative">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   className="flex items-center gap-2"
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                 >
                   <div className="w-6 h-6 bg-gradient-to-br from-success to-success/60 rounded-full flex items-center justify-center">
                     <User className="h-3 w-3 text-success-foreground" />
                   </div>
+                  <span className="text-sm">{selectedProfile?.name || 'Selecionar perfil'}</span>
                   <ChevronDown className="h-3 w-3" />
                 </Button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-card border rounded-lg shadow-lg py-2 z-50">
-                    <p className="px-4 py-2 text-xs text-muted-foreground border-b border-border/50">
-                      {displayEmail}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={logout}
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-muted text-destructive"
-                    >
-                      Sair
-                    </button>
+                  <div className="absolute right-0 mt-2 w-64 bg-card border rounded-lg shadow-lg py-2 z-50">
+                    <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border/50 flex items-center justify-between">
+                      <span>Perfis (até 5)</span>
+                      <Button size="icon" variant="ghost" onClick={() => setSettingsOpen(true)}>
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {profiles.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          selectProfile(p.id)
+                          setUserMenuOpen(false)
+                        }}
+                        className={cn(
+                          'w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-muted text-left',
+                          p.id === selectedProfileId ? 'bg-muted font-semibold' : ''
+                        )}
+                      >
+                        <img
+                          src={p.photo || DEFAULT_AVATAR}
+                          alt={p.name}
+                          className="w-8 h-8 rounded-full object-cover border"
+                        />
+                        <div className="flex flex-col">
+                          <span className="truncate">{p.name}</span>
+                          <span className="text-xs text-muted-foreground truncate">{p.id}</span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -178,6 +208,44 @@ export function AdvancedLayout({ children, currentPage }) {
           {children}
         </main>
       </div>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar perfis</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {profiles.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 border rounded-lg p-3">
+                <img
+                  src={p.photo || DEFAULT_AVATAR}
+                  alt={p.name}
+                  className="w-12 h-12 rounded-full object-cover border"
+                />
+                <div className="flex-1 space-y-2">
+                  <Input
+                    value={p.name}
+                    onChange={(e) => updateProfile(p.id, { name: e.target.value })}
+                    placeholder="Nome do perfil"
+                  />
+                  <Input
+                    value={p.photo || ''}
+                    onChange={(e) => updateProfile(p.id, { photo: e.target.value })}
+                    placeholder="URL da foto (opcional)"
+                  />
+                  <p className="text-xs text-muted-foreground">ID: {p.id}</p>
+                </div>
+                <Button
+                  variant={p.id === selectedProfileId ? 'default' : 'outline'}
+                  onClick={() => selectProfile(p.id)}
+                >
+                  Usar
+                </Button>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

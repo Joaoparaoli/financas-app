@@ -1,4 +1,12 @@
-import { withSupabase } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase'
+
+const ALLOWED_PROFILES = ['profile-1', 'profile-2', 'profile-3', 'profile-4', 'profile-5']
+
+function getProfileId(req) {
+  const header = req.headers['x-profile-id']
+  if (header && ALLOWED_PROFILES.includes(header)) return header
+  return null
+}
 
 function serializeFinancialGoal(row) {
   if (!row) return row
@@ -33,27 +41,35 @@ const VALID_CATEGORIES = [
 const VALID_STATUSES = ['active', 'completed', 'paused']
 
 async function handler(req, res) {
-  const { supabase, user } = req
+  const supabase = supabaseAdmin
+  const profileId = getProfileId(req)
+  if (!supabase) return res.status(500).json({ error: 'Supabase não configurado' })
+  if (!profileId) return res.status(400).json({ error: 'Perfil não informado ou inválido' })
   const { method } = req
 
   switch (method) {
     case 'GET':
-      return handleGet(req, res, supabase, user)
+      return handleGet(req, res, supabase, profileId)
     case 'POST':
-      return handlePost(req, res, supabase, user)
+      return handlePost(req, res, supabase, profileId)
     default:
       res.setHeader('Allow', ['GET', 'POST'])
       return res.status(405).json({ error: `Method ${method} not allowed` })
   }
 }
 
-async function handleGet(req, res, supabase, user) {
+async function handleGet(req, res, supabase, profileId) {
   try {
-    const { data: financialGoals, error } = await supabase
+    const { status, category } = req.query
+    const query = supabase
       .from('financial_goals')
       .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+      .eq('user_id', profileId)
+    if (status) query.eq('status', status)
+    if (category) query.eq('category', category)
+    query.order('created_at', { ascending: false })
+
+    const { data: financialGoals, error } = await query
 
     if (error) {
       console.error('Error fetching financial goals:', error)
@@ -67,7 +83,7 @@ async function handleGet(req, res, supabase, user) {
   }
 }
 
-async function handlePost(req, res, supabase, user) {
+async function handlePost(req, res, supabase, profileId) {
   try {
     const {
       title,
@@ -101,7 +117,7 @@ async function handlePost(req, res, supabase, user) {
     const { data: financialGoal, error } = await supabase
       .from('financial_goals')
       .insert({
-        user_id: user.id,
+        user_id: profileId,
         title,
         description: description ?? null,
         target_amount: targetAmount,
@@ -126,4 +142,4 @@ async function handlePost(req, res, supabase, user) {
   }
 }
 
-export default withSupabase(handler)
+export default handler

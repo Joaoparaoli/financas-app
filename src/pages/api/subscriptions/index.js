@@ -1,4 +1,12 @@
-import { withSupabase } from '@/lib/supabase-server'
+import { supabaseAdmin } from '@/lib/supabase'
+
+const ALLOWED_PROFILES = ['profile-1', 'profile-2', 'profile-3', 'profile-4', 'profile-5']
+
+function getProfileId(req) {
+  const header = req.headers['x-profile-id']
+  if (header && ALLOWED_PROFILES.includes(header)) return header
+  return null
+}
 
 function serializeSubscription(row) {
   if (!row) return row
@@ -19,26 +27,29 @@ function serializeSubscription(row) {
 const VALID_FREQUENCIES = ['monthly', 'bimonthly', 'quarterly', 'semiannual', 'annual']
 
 async function handler(req, res) {
-  const { supabase, user } = req
+  const supabase = supabaseAdmin
+  const profileId = getProfileId(req)
+  if (!supabase) return res.status(500).json({ error: 'Supabase não configurado' })
+  if (!profileId) return res.status(400).json({ error: 'Perfil não informado ou inválido' })
   const { method } = req
 
   switch (method) {
     case 'GET':
-      return handleGet(req, res, supabase, user)
+      return handleGet(req, res, supabase, profileId)
     case 'POST':
-      return handlePost(req, res, supabase, user)
+      return handlePost(req, res, supabase, profileId)
     default:
       res.setHeader('Allow', ['GET', 'POST'])
       return res.status(405).json({ error: `Method ${method} not allowed` })
   }
 }
 
-async function handleGet(req, res, supabase, user) {
+async function handleGet(req, res, supabase, profileId) {
   try {
     const { data: subscriptions, error } = await supabase
       .from('subscriptions')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', profileId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -53,7 +64,7 @@ async function handleGet(req, res, supabase, user) {
   }
 }
 
-async function handlePost(req, res, supabase, user) {
+async function handlePost(req, res, supabase, profileId) {
   try {
     const { name, amount, frequency, notes, isActive } = req.body
 
@@ -72,7 +83,7 @@ async function handlePost(req, res, supabase, user) {
     const { data: subscription, error } = await supabase
       .from('subscriptions')
       .insert({
-        user_id: user.id,
+        user_id: profileId,
         name,
         amount,
         frequency,
@@ -94,4 +105,4 @@ async function handlePost(req, res, supabase, user) {
   }
 }
 
-export default withSupabase(handler)
+export default handler

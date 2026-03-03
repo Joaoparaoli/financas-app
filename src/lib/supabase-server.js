@@ -81,7 +81,7 @@ export function withSupabase(handler) {
     } catch (error) {
       console.error('[withSupabase]', error)
       if (!res.headersSent) {
-        return res.status(500).json({ error: 'Erro interno' })
+        return res.status(500).json({ error: error?.message || 'Erro interno' })
       }
       return res.end()
     }

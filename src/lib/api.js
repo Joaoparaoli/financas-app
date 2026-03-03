@@ -1,26 +1,26 @@
-import { supabase } from '@/lib/supabase';
+function getProfileIdFromStorage() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('financas-profile-state');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.selectedProfileId || null;
+  } catch (e) {
+    return null;
+  }
+}
 
 async function request(url, options = {}) {
   const { headers, body, ...rest } = options;
 
-  let authHeaders = {};
-  if (supabase) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (session?.access_token) {
-      authHeaders = {
-        Authorization: `Bearer ${session.access_token}`,
-      };
-    }
-  }
+  const profileId = getProfileIdFromStorage();
+  const profileHeaders = profileId ? { 'X-Profile-Id': profileId } : {};
 
   const res = await fetch(url, {
     credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      ...authHeaders,
+      ...profileHeaders,
       ...(headers || {}),
     },
     ...rest,
