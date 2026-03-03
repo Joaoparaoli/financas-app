@@ -2,11 +2,11 @@ function getProfileIdFromStorage() {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem('financas-profile-state');
-    if (!raw) return null;
+    if (!raw) return 'profile-1';
     const parsed = JSON.parse(raw);
-    return parsed?.selectedProfileId || null;
+    return parsed?.selectedProfileId || 'profile-1';
   } catch (e) {
-    return null;
+    return 'profile-1';
   }
 }
 
