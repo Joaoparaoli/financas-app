@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useProfile } from '@/context/ProfileContext';
 import { AssetAPI, LiabilityAPI } from '@/lib/api';
 import { formatCurrency, ASSET_TYPES, LIABILITY_TYPES } from '@/lib/utils';
 import { feedback } from '@/lib/feedback';
@@ -48,6 +49,7 @@ const defaultForm = {
 
 export default function Patrimonio() {
   const queryClient = useQueryClient();
+  const { selectedProfileId } = useProfile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [itemType, setItemType] = useState('asset');
@@ -58,8 +60,8 @@ export default function Patrimonio() {
     isLoading: loadingAssets,
     isError: errorAssets,
   } = useQuery({
-    queryKey: ['assets'],
-    queryFn: () => AssetAPI.list(),
+    queryKey: ['assets', selectedProfileId],
+    queryFn: () => AssetAPI.list(selectedProfileId),
   });
 
   const {
@@ -67,12 +69,12 @@ export default function Patrimonio() {
     isLoading: loadingLiabilities,
     isError: errorLiabilities,
   } = useQuery({
-    queryKey: ['liabilities'],
-    queryFn: () => LiabilityAPI.list(),
+    queryKey: ['liabilities', selectedProfileId],
+    queryFn: () => LiabilityAPI.list(selectedProfileId),
   });
 
   const createAsset = useMutation({
-    mutationFn: (data) => AssetAPI.create(data),
+    mutationFn: (data) => AssetAPI.create(selectedProfileId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
       feedback('success');
@@ -81,7 +83,7 @@ export default function Patrimonio() {
   });
 
   const updateAsset = useMutation({
-    mutationFn: ({ id, data }) => AssetAPI.update(id, data),
+    mutationFn: ({ id, data }) => AssetAPI.update(selectedProfileId, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
       feedback('success');
@@ -90,7 +92,7 @@ export default function Patrimonio() {
   });
 
   const deleteAsset = useMutation({
-    mutationFn: (id) => AssetAPI.delete(id),
+    mutationFn: (id) => AssetAPI.delete(selectedProfileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
       feedback('delete');
@@ -98,7 +100,7 @@ export default function Patrimonio() {
   });
 
   const createLiability = useMutation({
-    mutationFn: (data) => LiabilityAPI.create(data),
+    mutationFn: (data) => LiabilityAPI.create(selectedProfileId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['liabilities'] });
       feedback('success');
@@ -107,7 +109,7 @@ export default function Patrimonio() {
   });
 
   const updateLiability = useMutation({
-    mutationFn: ({ id, data }) => LiabilityAPI.update(id, data),
+    mutationFn: ({ id, data }) => LiabilityAPI.update(selectedProfileId, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['liabilities'] });
       feedback('success');
@@ -116,7 +118,7 @@ export default function Patrimonio() {
   });
 
   const deleteLiability = useMutation({
-    mutationFn: (id) => LiabilityAPI.delete(id),
+    mutationFn: (id) => LiabilityAPI.delete(selectedProfileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['liabilities'] });
       feedback('delete');

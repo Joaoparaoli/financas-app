@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useProfile } from '@/context/ProfileContext'
 import { CreditCardAPI, TransactionAPI } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
 import { feedback } from '@/lib/feedback'
@@ -135,13 +136,15 @@ function CartoesTab() {
     installments: '1',
   })
 
+  const { selectedProfileId } = useProfile()
+
   const { data: cards = [], isLoading } = useQuery({
-    queryKey: ['credit-cards'],
-    queryFn: () => CreditCardAPI.list(),
+    queryKey: ['credit-cards', selectedProfileId],
+    queryFn: () => CreditCardAPI.list(selectedProfileId),
   })
 
   const chargeMutation = useMutation({
-    mutationFn: (data) => TransactionAPI.create(data),
+    mutationFn: (data) => TransactionAPI.create(selectedProfileId, data),
     onSuccess: () => {
       feedback('success')
       closeChargeDialog()
@@ -149,7 +152,7 @@ function CartoesTab() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (data) => CreditCardAPI.create(data),
+    mutationFn: (data) => CreditCardAPI.create(selectedProfileId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['credit-cards'] })
       feedback('success')
@@ -158,7 +161,7 @@ function CartoesTab() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => CreditCardAPI.update(id, data),
+    mutationFn: ({ id, data }) => CreditCardAPI.update(selectedProfileId, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['credit-cards'] })
       feedback('success')
@@ -167,7 +170,7 @@ function CartoesTab() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => CreditCardAPI.delete(id),
+    mutationFn: (id) => CreditCardAPI.delete(selectedProfileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['credit-cards'] })
       feedback('delete')

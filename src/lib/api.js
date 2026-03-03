@@ -1,97 +1,75 @@
-function getProfileIdFromStorage() {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem('financas-profile-state');
-    if (!raw) return 'profile-1';
-    const parsed = JSON.parse(raw);
-    return parsed?.selectedProfileId || 'profile-1';
-  } catch (e) {
-    return 'profile-1';
-  }
-}
-
-async function request(url, options = {}) {
+async function request(url, profileId, options = {}) {
   const { headers, body, ...rest } = options;
-
-  const profileId = getProfileIdFromStorage();
-  const profileHeaders = profileId ? { 'X-Profile-Id': profileId } : {};
 
   const res = await fetch(url, {
     credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
-      ...profileHeaders,
+      'X-Profile-Id': profileId || 'profile-1',
       ...(headers || {}),
     },
     ...rest,
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (res.status === 401) {
-    throw new Error('Você precisa fazer login para continuar.');
-  }
-
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: 'Erro na requisição' }));
-    throw new Error(error.message || 'Erro na requisição');
+    throw new Error(error.message || error.error || 'Erro na requisição');
   }
 
-  if (res.status === 204) {
-    return {};
-  }
-
+  if (res.status === 204) return {};
   return res.json();
 }
 
 // Transactions
 export const TransactionAPI = {
-  list: (params) => request(`/api/transactions?${new URLSearchParams(params)}`),
-  create: (data) => request('/api/transactions', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/transactions/${id}`, { method: 'PUT', body: data }),
-  delete: (id) => request(`/api/transactions/${id}`, { method: 'DELETE' }),
+  list: (profileId, params) => request(`/api/transactions?${new URLSearchParams(params)}`, profileId),
+  create: (profileId, data) => request('/api/transactions', profileId, { method: 'POST', body: data }),
+  update: (profileId, id, data) => request(`/api/transactions/${id}`, profileId, { method: 'PUT', body: data }),
+  delete: (profileId, id) => request(`/api/transactions/${id}`, profileId, { method: 'DELETE' }),
 };
 
 // Credit Cards
 export const CreditCardAPI = {
-  list: () => request('/api/credit-cards'),
-  create: (data) => request('/api/credit-cards', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/credit-cards/${id}`, { method: 'PUT', body: data }),
-  delete: (id) => request(`/api/credit-cards/${id}`, { method: 'DELETE' }),
+  list: (profileId) => request('/api/credit-cards', profileId),
+  create: (profileId, data) => request('/api/credit-cards', profileId, { method: 'POST', body: data }),
+  update: (profileId, id, data) => request(`/api/credit-cards/${id}`, profileId, { method: 'PUT', body: data }),
+  delete: (profileId, id) => request(`/api/credit-cards/${id}`, profileId, { method: 'DELETE' }),
 };
 
 // Assets
 export const AssetAPI = {
-  list: () => request('/api/assets'),
-  create: (data) => request('/api/assets', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/assets/${id}`, { method: 'PUT', body: data }),
-  delete: (id) => request(`/api/assets/${id}`, { method: 'DELETE' }),
+  list: (profileId) => request('/api/assets', profileId),
+  create: (profileId, data) => request('/api/assets', profileId, { method: 'POST', body: data }),
+  update: (profileId, id, data) => request(`/api/assets/${id}`, profileId, { method: 'PUT', body: data }),
+  delete: (profileId, id) => request(`/api/assets/${id}`, profileId, { method: 'DELETE' }),
 };
 
 // Liabilities
 export const LiabilityAPI = {
-  list: () => request('/api/liabilities'),
-  create: (data) => request('/api/liabilities', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/liabilities/${id}`, { method: 'PUT', body: data }),
-  delete: (id) => request(`/api/liabilities/${id}`, { method: 'DELETE' }),
+  list: (profileId) => request('/api/liabilities', profileId),
+  create: (profileId, data) => request('/api/liabilities', profileId, { method: 'POST', body: data }),
+  update: (profileId, id, data) => request(`/api/liabilities/${id}`, profileId, { method: 'PUT', body: data }),
+  delete: (profileId, id) => request(`/api/liabilities/${id}`, profileId, { method: 'DELETE' }),
 };
 
 // Financial Goals
 export const FinancialGoalAPI = {
-  list: () => request('/api/financial-goals'),
-  create: (data) => request('/api/financial-goals', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/financial-goals/${id}`, { method: 'PUT', body: data }),
-  delete: (id) => request(`/api/financial-goals/${id}`, { method: 'DELETE' }),
+  list: (profileId) => request('/api/financial-goals', profileId),
+  create: (profileId, data) => request('/api/financial-goals', profileId, { method: 'POST', body: data }),
+  update: (profileId, id, data) => request(`/api/financial-goals/${id}`, profileId, { method: 'PUT', body: data }),
+  delete: (profileId, id) => request(`/api/financial-goals/${id}`, profileId, { method: 'DELETE' }),
 };
 
 // Subscriptions
 export const SubscriptionAPI = {
-  list: () => request('/api/subscriptions'),
-  create: (data) => request('/api/subscriptions', { method: 'POST', body: data }),
-  update: (id, data) => request(`/api/subscriptions/${id}`, { method: 'PUT', body: data }),
-  delete: (id) => request(`/api/subscriptions/${id}`, { method: 'DELETE' }),
+  list: (profileId) => request('/api/subscriptions', profileId),
+  create: (profileId, data) => request('/api/subscriptions', profileId, { method: 'POST', body: data }),
+  update: (profileId, id, data) => request(`/api/subscriptions/${id}`, profileId, { method: 'PUT', body: data }),
+  delete: (profileId, id) => request(`/api/subscriptions/${id}`, profileId, { method: 'DELETE' }),
 };
 
 export const BulkAPI = {
-  export: () => request('/api/bulk'),
-  import: (data) => request('/api/bulk', { method: 'POST', body: { data } }),
+  export: (profileId) => request('/api/bulk', profileId),
+  import: (profileId, data) => request('/api/bulk', profileId, { method: 'POST', body: { data } }),
 };

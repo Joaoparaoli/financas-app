@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useProfile } from '@/context/ProfileContext';
 import { FinancialGoalAPI } from '@/lib/api';
 import { formatCurrency, GOAL_CATEGORIES } from '@/lib/utils';
 import { feedback } from '@/lib/feedback';
@@ -43,17 +44,18 @@ const defaultForm = {
 
 export default function OrcamentoMetas() {
   const queryClient = useQueryClient();
+  const { selectedProfileId } = useProfile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [form, setForm] = useState(defaultForm);
 
   const { data: goals = [], isLoading } = useQuery({
-    queryKey: ['financial-goals'],
-    queryFn: () => FinancialGoalAPI.list(),
+    queryKey: ['financial-goals', selectedProfileId],
+    queryFn: () => FinancialGoalAPI.list(selectedProfileId),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => FinancialGoalAPI.create(data),
+    mutationFn: (data) => FinancialGoalAPI.create(selectedProfileId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
       feedback('success');
@@ -62,7 +64,7 @@ export default function OrcamentoMetas() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => FinancialGoalAPI.update(id, data),
+    mutationFn: ({ id, data }) => FinancialGoalAPI.update(selectedProfileId, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
       feedback('success');
@@ -71,7 +73,7 @@ export default function OrcamentoMetas() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => FinancialGoalAPI.delete(id),
+    mutationFn: (id) => FinancialGoalAPI.delete(selectedProfileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial-goals'] });
       feedback('delete');

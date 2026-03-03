@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useProfile } from '@/context/ProfileContext';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -48,22 +49,23 @@ export default function FluxoCaixa() {
   const [pickerYear, setPickerYear] = useState(() => new Date().getFullYear());
 
   const queryClient = useQueryClient();
+  const { selectedProfileId } = useProfile();
 
   const month = getMonth(currentMonth) + 1;
   const year = getYear(currentMonth);
 
   const { data: transactions = [], isLoading: isLoadingTransactions } = useQuery({
-    queryKey: ['transactions', month, year],
-    queryFn: () => TransactionAPI.list({ month, year }),
+    queryKey: ['transactions', selectedProfileId, month, year],
+    queryFn: () => TransactionAPI.list(selectedProfileId, { month, year }),
   });
 
   const { data: creditCards = [] } = useQuery({
-    queryKey: ['credit-cards'],
-    queryFn: () => CreditCardAPI.list(),
+    queryKey: ['credit-cards', selectedProfileId],
+    queryFn: () => CreditCardAPI.list(selectedProfileId),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => TransactionAPI.create(data),
+    mutationFn: (data) => TransactionAPI.create(selectedProfileId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       feedback('success');
@@ -76,7 +78,7 @@ export default function FluxoCaixa() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => TransactionAPI.update(id, data),
+    mutationFn: ({ id, data }) => TransactionAPI.update(selectedProfileId, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       feedback('success');
@@ -89,7 +91,7 @@ export default function FluxoCaixa() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => TransactionAPI.delete(id),
+    mutationFn: (id) => TransactionAPI.delete(selectedProfileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       feedback('delete');

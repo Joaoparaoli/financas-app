@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useProfile } from '@/context/ProfileContext';
 import { SubscriptionAPI } from '@/lib/api';
 import {
   formatCurrency,
@@ -43,17 +44,18 @@ const defaultForm = {
 
 export default function SubscriptionsTab() {
   const queryClient = useQueryClient();
+  const { selectedProfileId } = useProfile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSub, setEditingSub] = useState(null);
   const [form, setForm] = useState(defaultForm);
 
   const { data: subscriptions = [], isLoading, isError } = useQuery({
-    queryKey: ['subscriptions'],
-    queryFn: () => SubscriptionAPI.list(),
+    queryKey: ['subscriptions', selectedProfileId],
+    queryFn: () => SubscriptionAPI.list(selectedProfileId),
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => SubscriptionAPI.create(data),
+    mutationFn: (data) => SubscriptionAPI.create(selectedProfileId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       feedback('success');
@@ -62,7 +64,7 @@ export default function SubscriptionsTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => SubscriptionAPI.update(id, data),
+    mutationFn: ({ id, data }) => SubscriptionAPI.update(selectedProfileId, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       feedback('success');
@@ -71,7 +73,7 @@ export default function SubscriptionsTab() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => SubscriptionAPI.delete(id),
+    mutationFn: (id) => SubscriptionAPI.delete(selectedProfileId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       feedback('delete');
